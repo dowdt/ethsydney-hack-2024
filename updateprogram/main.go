@@ -216,7 +216,7 @@ func main() {
 		{ // Event loop.
 			ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
 
-			// contract := ""
+			contract := ""
 
 			// Get the first
 
