@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
-import VotingInterface from './VotingInterface';
+import { ContractService } from "@/services/contractService";
+import Link from 'next/link';
 
 export default function App() {
     const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
@@ -14,7 +15,8 @@ export default function App() {
     const [sourceURL, setSourceURL] = useState<string>("");
     const [targetId, setTargetId] = useState<string>("");
     const [exeCID, setExeCID] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [contractService, setContractService] = useState<ContractService|null>(null);
 
     const web3Modal = new Web3Modal({
         network: "mainnet", // TODO: connect to actual network
@@ -25,6 +27,46 @@ export default function App() {
             }
         }
     });
+
+    // Check for existing connection on mount
+    useEffect(() => {
+        const checkConnection = async () => {
+            if (web3Modal.cachedProvider) {
+                try {
+                    const instance = await web3Modal.connectTo(web3Modal.cachedProvider);
+                    const web3Provider = new ethers.BrowserProvider(instance);
+                    setProvider(web3Provider);
+
+                    const signer = await web3Provider.getSigner();
+                    const address = await signer.getAddress();
+                    setAccount(address);
+                    checkForNFT(address);
+
+                    setContractService(new ContractService(signer));
+
+                    // Set up event listeners
+                    instance.on("accountsChanged", () => {
+                        window.location.reload();
+                    });
+
+                    instance.on("chainChanged", () => {
+                        window.location.reload();
+                    });
+
+                    instance.on("disconnect", () => {
+                        web3Modal.clearCachedProvider();
+                        window.location.reload();
+                    });
+                } catch (error) {
+                    console.error("Failed to reconnect:", error);
+                    web3Modal.clearCachedProvider();
+                }
+            }
+            setIsLoading(false);
+        };
+
+        checkConnection();
+    }, []);
 
     const connectWallet = async () => {
         try {
@@ -50,6 +92,10 @@ export default function App() {
             const address = await signer.getAddress();
             setAccount(address);
             checkForNFT(address);
+
+            // Initialize ContractService
+            setContractService(new ContractService(signer));
+
             console.log("Connected to address:", address);
         } catch (error) {
             console.error("Failed to connect wallet:", error);
@@ -72,16 +118,32 @@ export default function App() {
 
     const handleProposalSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Submitting proposal:", {
-            name: proposalName,
-            sourceURL,
-            targetId,
-            exeCID,
-            proposer: account
-        });
+        if (!contractService) {
+            console.error("ContractService is not initialized");
+            return;
+        }
+        try {
+            console.log("Submitting proposal:", {
+                name: proposalName,
+                sourceURL,
+                targetId,
+                exeCID,
+                proposer: account
+            });
+
+            const targets = [process.env.GOVERNANCE_CONTRACT || ""];
+            const values = [0];
+            const calldatas = ["0xdeadbeef"]; // Placeholder calldata
+            const description = proposalName;
+
+            const txHash = await contractService.propose(targets, values, calldatas, description);
+            console.log("Proposal submitted, transaction hash: ", txHash);
+        } catch (error) {
+            console.error("Failed to submit proposal", error);
+        }
     }
 
-    // Show loading state while connecting
+    // Show loading state while checking for existing connection
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
@@ -200,6 +262,13 @@ export default function App() {
                         >
                             Vote
                         </button>
+                        <Link href="/proposals" className={`flex-1 px-4 py-2 rounded-lg transition-colors`}>
+                            <button
+                                
+                            >
+                                Proposals
+                            </button>
+                        </Link>
                     </div>
 
                     {activeTab === 'submit' && (
