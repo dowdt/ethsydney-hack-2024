@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
-import { ContractService } from "@/services/contractService";
-import Link from 'next/link';
+import VotingInterface from './VotingInterface';
 
 export default function App() {
     const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
@@ -15,12 +14,11 @@ export default function App() {
     const [sourceURL, setSourceURL] = useState<string>("");
     const [targetId, setTargetId] = useState<string>("");
     const [exeCID, setExeCID] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(true);
-    const [contractService, setContractService] = useState<ContractService|null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const web3Modal = new Web3Modal({
         network: "mainnet", // TODO: connect to actual network
-        cacheProvider: true,
+        cacheProvider: false, // Changed to false to prevent auto-connecting
         providerOptions: {
             metamask: {
                 package: null
@@ -28,48 +26,9 @@ export default function App() {
         }
     });
 
-    // Check for existing connection on mount
-    useEffect(() => {
-        const checkConnection = async () => {
-            if (web3Modal.cachedProvider) {
-                try {
-                    const instance = await web3Modal.connectTo(web3Modal.cachedProvider);
-                    const web3Provider = new ethers.BrowserProvider(instance);
-                    setProvider(web3Provider);
-
-                    const signer = await web3Provider.getSigner();
-                    const address = await signer.getAddress();
-                    setAccount(address);
-                    checkForNFT(address);
-
-                    setContractService(new ContractService(signer));
-
-                    // Set up event listeners
-                    instance.on("accountsChanged", () => {
-                        window.location.reload();
-                    });
-
-                    instance.on("chainChanged", () => {
-                        window.location.reload();
-                    });
-
-                    instance.on("disconnect", () => {
-                        web3Modal.clearCachedProvider();
-                        window.location.reload();
-                    });
-                } catch (error) {
-                    console.error("Failed to reconnect:", error);
-                    web3Modal.clearCachedProvider();
-                }
-            }
-            setIsLoading(false);
-        };
-
-        checkConnection();
-    }, []);
-
     const connectWallet = async () => {
         try {
+            setIsLoading(true);
             const instance = await web3Modal.connect();
             const web3Provider = new ethers.BrowserProvider(instance);
             setProvider(web3Provider);
@@ -84,8 +43,7 @@ export default function App() {
             });
 
             instance.on("disconnect", () => {
-                web3Modal.clearCachedProvider();
-                window.location.reload();
+                disconnectWallet();
             });
 
             const signer = await web3Provider.getSigner();
@@ -99,8 +57,17 @@ export default function App() {
             console.log("Connected to address:", address);
         } catch (error) {
             console.error("Failed to connect wallet:", error);
+        } finally {
+            setIsLoading(false);
         }
     }
+
+    const disconnectWallet = () => {
+        web3Modal.clearCachedProvider();
+        setProvider(null);
+        setAccount("");
+        setHasNFT(false);
+    };
 
     const checkForNFT = async (address: string) => {
         // TODO: Implement actual NFT check for voting rights
@@ -109,37 +76,21 @@ export default function App() {
 
     const handleProposalSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!contractService) {
-            console.error("ContractService is not initialized");
-            return;
-        }
-        try {
-            console.log("Submitting proposal:", {
-                name: proposalName,
-                sourceURL,
-                targetId,
-                exeCID,
-                proposer: account
-            });
-
-            const targets = [process.env.GOVERNANCE_CONTRACT || ""];
-            const values = [0];
-            const calldatas = ["0xdeadbeef"]; // Placeholder calldata
-            const description = proposalName;
-
-            const txHash = await contractService.propose(targets, values, calldatas, description);
-            console.log("Proposal submitted, transaction hash: ", txHash);
-        } catch (error) {
-            console.error("Failed to submit proposal", error);
-        }
+        console.log("Submitting proposal:", {
+            name: proposalName,
+            sourceURL,
+            targetId,
+            exeCID,
+            proposer: account
+        });
     }
 
-    // Show loading state while checking for existing connection
+    // Show loading state while connecting
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
                 <div className="glass glow max-w-lg w-full p-8 rounded-xl text-center">
-                    <h1 className="text-2xl text-gray-200">Loading...</h1>
+                    <h1 className="text-2xl text-gray-200">Connecting...</h1>
                 </div>
             </div>
         );
@@ -212,10 +163,16 @@ export default function App() {
                                     NFT Holder
                                 </span>
                             )}
-                            <div className="glass px-4 py-2 rounded-lg">
+                            <div className="glass px-4 py-2 rounded-lg flex items-center space-x-4">
                                 <span className="text-sm text-gray-300">
                                     {account.slice(0, 6)}...{account.slice(-4)}
                                 </span>
+                                <button
+                                    onClick={disconnectWallet}
+                                    className="text-sm text-red-300 hover:text-red-400"
+                                >
+                                    Disconnect
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -295,9 +252,7 @@ export default function App() {
                     )}
 
                     {activeTab === 'vote' && hasNFT && (
-                        <div className="text-center p-8 text-gray-400">
-                            Voting interface will be implemented in a future update
-                        </div>
+                        <VotingInterface />
                     )}
                 </div>
             </div>
