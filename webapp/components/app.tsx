@@ -5,6 +5,7 @@ import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 import VotingInterface from "./VotingInterface";
 import { ContractService } from "@/services/contractService";
+import WalletConnectProvider from "@walletconnect/web3-provider";
 
 export default function App() {
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
@@ -19,11 +20,19 @@ export default function App() {
     const [contractService, setContractService] = useState<ContractService | null>(null);
 
     const web3Modal = new Web3Modal({
-        network: "sepolia",
-        cacheProvider: false,
-        providerOptions: {}
+        cacheProvider: true, // Enable this to keep the provider cached
+        providerOptions: {
+            walletconnect: {
+                package: WalletConnectProvider,
+                options: {
+                    rpc: {
+                        11155931: "https://testnet.riselabs.xyz", // Custom Rise Sepolia RPC URL
+                    },
+                    chainId: 11155931,
+                },
+            },
+        },
     });
-
     const connectWallet = async () => {
         try {
             setIsLoading(true);
@@ -39,6 +48,12 @@ export default function App() {
             const address = await signer.getAddress();
             setAccount(address);
 
+            const { chainId } = await web3Provider.getNetwork();
+            if (chainId.toString() !== "11155931") {
+                // Prompt to add or switch to "Rise Sepolia" if not on the correct network
+                await addRiseSepoliaNetwork(instance);
+            }
+
             checkForNFT(address);
             const service = new ContractService(signer);
             setContractService(service);
@@ -48,6 +63,29 @@ export default function App() {
             console.error("Failed to connect wallet:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const addRiseSepoliaNetwork = async (web3Provider: any) => {
+        const params = {
+            chainId: "0xAAAFDB", // Hex representation of 11155931
+            chainName: "Rise Sepolia",
+            rpcUrls: ["https://testnet.riselabs.xyz"],
+            nativeCurrency: {
+                name: "ETH",
+                symbol: "ETH",
+                decimals: 18,
+            },
+            blockExplorerUrls: ["https://testnet-explorer.riselabs.xyz"],
+        };
+
+        try {
+            await web3Provider.request({
+                method: "wallet_addEthereumChain",
+                params: [params],
+            });
+        } catch (error) {
+            console.error("Failed to add or switch to Rise Sepolia network:", error);
         }
     };
 
@@ -80,7 +118,12 @@ export default function App() {
             console.log("Submitting proposal:", { proposalName, sourceURL, targetId, exeCID, proposer: account });
 
             // Submitting the proposal
-            await contractService.propose(["0x1069696934567890ABCDef123456789F12345678"], [0], [exeCID], ethers.keccak256(Buffer.from(proposalName)));
+            await contractService.propose(
+                ["0x1069696934567890ABCDef123456789F12345678"],
+                [0],
+                [exeCID],
+                ethers.keccak256(Buffer.from(proposalName))
+            );
 
             alert("Proposal submitted successfully!");
             setProposalName("");
@@ -123,16 +166,6 @@ export default function App() {
                     <p className="text-xl text-gray-200 mb-8">
                         Decentralized Computation Governance Platform
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div className="glass p-6 rounded-lg hover:scale-105 transition-transform">
-                            <h3 className="text-xl font-semibold text-white mb-2">Submit Proposals</h3>
-                            <p className="text-gray-300">Anyone can submit computational proposals to the network</p>
-                        </div>
-                        <div className="glass p-6 rounded-lg hover:scale-105 transition-transform">
-                            <h3 className="text-xl font-semibold text-white mb-2">Vote on Changes</h3>
-                            <p className="text-gray-300">NFT holders can participate in governance decisions</p>
-                        </div>
-                    </div>
                     <button
                         onClick={connectWallet}
                         className="cyberpunk-button w-full"

@@ -16,7 +16,7 @@ export class ContractService {
   private governorContract: ethers.Contract;
 
   constructor(signer: ethers.JsonRpcSigner) {
-    const governorContractAddress = process.env.GOVERNANCE_CONTRACT || "0x521BC5Ac79AE22C081d9C615504e4F642C672BE2";
+    const governorContractAddress = process.env.GOVERNANCE_CONTRACT || "0x71933465B8FC811F93049BBC18a8AdbECc79b5b8";
     this.governorContract = new ethers.Contract(governorContractAddress, GovernorABI, signer);
   }
 
