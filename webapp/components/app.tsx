@@ -104,7 +104,8 @@ export default function App() {
     return (
         <div className="min-h-screen bg-shapes">
             {/* New Header Section */}
-            <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
+            <div
+                className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex items-center justify-between py-4">
                         <div className="flex items-center space-x-8">
@@ -134,7 +135,8 @@ export default function App() {
                         </div>
                         <div className="flex items-center space-x-4">
                             {hasNFT && (
-                                <span className="hidden md:inline-block px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
+                                <span
+                                    className="hidden md:inline-block px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
                                     NFT Holder
                                 </span>
                             )}
@@ -232,6 +234,17 @@ export default function App() {
                             Voting interface will be implemented in a future update
                         </div>
                     )}
+                </div>
+            </div>
+            <div
+                className="w-full py-8 flex items-center justify-center bg-black/30 backdrop-blur-sm border-t border-white/10">
+                <div className="flex items-center gap-4">
+                    <span className="text-xl text-gray-300">Powered by</span>
+                    <img
+                        src="/rise-logo.png"
+                        alt="RISE Logo"
+                        className="h-12 object-contain hover:scale-105 transition-transform"
+                    />
                 </div>
             </div>
         </div>
