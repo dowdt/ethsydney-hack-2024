@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	bsclient "github.com/ipfs/boxo/bitswap/client"
 	bsnet "github.com/ipfs/boxo/bitswap/network"
@@ -21,6 +22,9 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/joho/godotenv"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p"
@@ -69,19 +73,36 @@ func NewHost() host.Host {
 	return h
 }
 
+func nextEvent(ctx context.Context, client *ethclient.Client) string {
+	// Actually just get the latest executed state and make sure we aren't already at that version.
+
+	contractAddress := common.HexToAddress("0x")
+	eventSignature := ""
+
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{},
+		Topics:    [][]common.Hash{[]common.Hash{common.HexToHash(eventSignature)}},
+		FromBlock: nil,
+		ToBlock:   nil,
+	}
+
+	// Issue: Have to filter to begin with, then run the event loop.
+	logs, err := client.FilterLogs(ctx, query)
+
+	// Get the event signature for the event.
+	var str string
+	fmt.Scanln(&str)
+
+	return str
+
+}
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		panic("No .env file found.")
 	}
 
 	fmt.Println("Welcome to the client.")
-
-	// Import boxo
-	// Event loop
-	// If the event is happens, then we download cid from ipfs
-	// We also seed the thing, why not?
-	// Once we finish executing, we run another version of the target program with exec
-	// On fail, we re-run the program X-many times
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -106,7 +127,31 @@ func main() {
 
 		// Get the actual frigging file.
 		dataFromCid := func(c cid.Cid) ([]byte, error) {
+
+			// HACK: Have to re-register the peers to force them to share files.
+			// This should not be happening, most likely there is a subtle issue too complicated to debug.
+			fmt.Println("Redconnecting")
+			for _, peerId := range h.Network().Peers() {
+				// XXX: Find a good timeout for reconnecting to old peers. Also find if there's a better way to handle this bitswap issue.
+				ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+				defer cancel()
+
+				err := bsnet.DisconnectFrom(ctx, peerId)
+				if err != nil {
+					fmt.Println("Failed to disconnect from:", peerId)
+					// panic(err)
+				} else {
+					err = bsnet.ConnectTo(ctx, peerId)
+					if err != nil {
+						fmt.Println("Failed to connect to:", peerId)
+						//panic(err)
+					}
+				}
+			}
+
 			dserv := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, merkledag.NewDAGService(bservice)))
+			fmt.Println("Downloading...")
+			// TODO: Add deadline
 			nd, err := dserv.Get(ctx, c)
 			if err != nil {
 				return nil, err
@@ -127,48 +172,55 @@ func main() {
 		}
 
 		{ // Event loop.
-			for {
-				str := ""
-				fmt.Scanln(&str)
-				fmt.Println("New event! ", str)
+			ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
 
-				c, err := cid.Parse(str)
-				if err != nil {
-					fmt.Println("Not a valid cid")
-				} else {
-					fmt.Println("Parsing:", str)
-					bytes, err := dataFromCid(c)
+			if err != nil {
+				panic(err)
+			} else {
+				// Event loop.
 
+				for {
+					str := nextEvent(ctx, ethClient)
+					fmt.Println("New event! ", str)
+
+					c, err := cid.Parse(str)
 					if err != nil {
-						fmt.Println("Failed to parse cid: ", str)
+						fmt.Println("Not a valid cid")
 					} else {
-						fmt.Println("Success, got: ")
-						fmt.Println(len(bytes))
+						fmt.Println("Valid cid: ", str)
+						bytes, err := dataFromCid(c)
 
-						// Now we interpret as a binary file.
-
-						// TODO: Check that it's an actual executable type.
-						f, err := os.CreateTemp("", "exe-*.bin")
 						if err != nil {
-							panic(err)
+							fmt.Println("Failed to parse cid: ", str)
 						} else {
-							{
-								os.Chmod(f.Name(), 0755)
+							fmt.Println("Success, got: ")
+							fmt.Println(len(bytes))
 
-								_, err := f.Write(bytes)
-								if err != nil {
-									panic(err)
+							// Now we interpret as a binary file.
+
+							// TODO: Check that it's an actual executable type.
+							f, err := os.CreateTemp("", "exe-*.bin")
+							if err != nil {
+								panic(err)
+							} else {
+								{
+									os.Chmod(f.Name(), 0755)
+
+									_, err := f.Write(bytes)
+									if err != nil {
+										panic(err)
+									}
+
+									f.Close()
 								}
 
-								f.Close()
-							}
+								cmd := exec.Command(f.Name())
+								cmd.Stdout = os.Stdout
+								cmd.Stderr = os.Stderr
 
-							cmd := exec.Command(f.Name())
-							cmd.Stdout = os.Stdout
-							cmd.Stderr = os.Stderr
-
-							if err := cmd.Run(); err != nil {
-								panic(err)
+								if err := cmd.Run(); err != nil {
+									panic(err)
+								}
 							}
 						}
 					}
