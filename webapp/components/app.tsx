@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
+// TEST
 
 // const customChainId = 1337; // Your custom chain ID
 // const customRpcUrl = "https://my-custom-rpc-url.com"; // Your custom RPC URL
