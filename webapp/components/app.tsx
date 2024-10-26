@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
@@ -13,17 +13,55 @@ export default function App() {
     const [sourceURL, setSourceURL] = useState<string>("");
     const [targetId, setTargetId] = useState<string>("");
     const [exeCID, setExeCID] = useState<string>("");
-    const [metadataCID, setMetadataCID] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(true);
 
     const web3Modal = new Web3Modal({
         network: "mainnet", // TODO: connect to actual network
-        cacheProvider: false,
+        cacheProvider: true,
         providerOptions: {
             metamask: {
                 package: null
             }
         }
     });
+
+    // Check for existing connection on mount
+    useEffect(() => {
+        const checkConnection = async () => {
+            if (web3Modal.cachedProvider) {
+                try {
+                    const instance = await web3Modal.connectTo(web3Modal.cachedProvider);
+                    const web3Provider = new ethers.BrowserProvider(instance);
+                    setProvider(web3Provider);
+
+                    const signer = await web3Provider.getSigner();
+                    const address = await signer.getAddress();
+                    setAccount(address);
+                    checkForNFT(address);
+
+                    // Set up event listeners
+                    instance.on("accountsChanged", () => {
+                        window.location.reload();
+                    });
+
+                    instance.on("chainChanged", () => {
+                        window.location.reload();
+                    });
+
+                    instance.on("disconnect", () => {
+                        web3Modal.clearCachedProvider();
+                        window.location.reload();
+                    });
+                } catch (error) {
+                    console.error("Failed to reconnect:", error);
+                    web3Modal.clearCachedProvider();
+                }
+            }
+            setIsLoading(false);
+        };
+
+        checkConnection();
+    }, []);
 
     const connectWallet = async () => {
         try {
@@ -41,6 +79,7 @@ export default function App() {
             });
 
             instance.on("disconnect", () => {
+                web3Modal.clearCachedProvider();
                 window.location.reload();
             });
 
@@ -66,9 +105,19 @@ export default function App() {
             sourceURL,
             targetId,
             exeCID,
-            metadataCID,
             proposer: account
         });
+    }
+
+    // Show loading state while checking for existing connection
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
+                <div className="glass glow max-w-lg w-full p-8 rounded-xl text-center">
+                    <h1 className="text-2xl text-gray-200">Loading...</h1>
+                </div>
+            </div>
+        );
     }
 
     // Landing page when not connected
@@ -103,9 +152,8 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-shapes">
-            {/* New Header Section */}
-            <div
-                className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
+            {/* Header Section */}
+            <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex items-center justify-between py-4">
                         <div className="flex items-center space-x-8">
@@ -135,8 +183,7 @@ export default function App() {
                         </div>
                         <div className="flex items-center space-x-4">
                             {hasNFT && (
-                                <span
-                                    className="hidden md:inline-block px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
+                                <span className="hidden md:inline-block px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
                                     NFT Holder
                                 </span>
                             )}
@@ -153,7 +200,7 @@ export default function App() {
             {/* Main Content */}
             <div className="max-w-6xl mx-auto p-4">
                 <div className="glass glow rounded-xl p-8 mb-6 mt-6">
-                    {/* Mobile Tabs - Only visible on small screens */}
+                    {/* Mobile Tabs */}
                     <div className="md:hidden flex space-x-4 mb-6">
                         <button
                             className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
@@ -195,7 +242,7 @@ export default function App() {
                             />
                             <input
                                 className="cyber-input w-full"
-                                placeholder="Target ID (hex)"
+                                placeholder="Target ID"
                                 value={targetId}
                                 onChange={(e) => setTargetId(e.target.value)}
                                 required
@@ -205,13 +252,6 @@ export default function App() {
                                 placeholder="Executable CID"
                                 value={exeCID}
                                 onChange={(e) => setExeCID(e.target.value)}
-                                required
-                            />
-                            <input
-                                className="cyber-input w-full"
-                                placeholder="Metadata CID"
-                                value={metadataCID}
-                                onChange={(e) => setMetadataCID(e.target.value)}
                                 required
                             />
                             <button
@@ -236,8 +276,7 @@ export default function App() {
                     )}
                 </div>
             </div>
-            <div
-                className="w-full py-8 flex items-center justify-center bg-black/30 backdrop-blur-sm border-t border-white/10">
+            <div className="w-full py-8 flex items-center justify-center bg-black/30 backdrop-blur-sm border-t border-white/10">
                 <div className="flex items-center gap-4">
                     <span className="text-xl text-gray-300">Powered by</span>
                     <img
