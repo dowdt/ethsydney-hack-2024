@@ -247,13 +247,6 @@ export default function App() {
                         >
                             Vote
                         </button>
-                        <Link href="/proposals" className={`flex-1 px-4 py-2 rounded-lg transition-colors`}>
-                            <button
-                                
-                            >
-                                Proposals
-                            </button>
-                        </Link>
                     </div>
 
                     {activeTab === 'submit' && (

@@ -113,9 +113,12 @@ export default function ProposalsPage() {
   const executeProposal = async () => {
     if (contractService && proposalId) {
       try {
-        const tx = await contractService.executeProposal(proposalId);
-        await tx.wait();
-        console.log("Proposal executed: ", tx.hash);
+        const proposal = proposals.find((proposal) => proposal.proposalId === proposalId);
+        if (!proposal) {
+          console.error("Proposal not found:", proposalId);
+        }
+        const txHash = await contractService.executeProposal(proposal.targets, proposal.calldatas, proposal.descriptionHash);
+        console.log("Proposal executed: ", txHash);
       } catch (error) {
         console.error("Failed to execute proposal:", error);
       }

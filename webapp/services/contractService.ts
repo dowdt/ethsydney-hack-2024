@@ -124,5 +124,25 @@ export class ContractService {
     }
   }
 
+  // Execute a proposal with the same parameters used to create it
+  async executeProposal(
+    targets: string[],
+    calldatas: string[],
+    descriptionHash: string
+  ): Promise<string> {
+    try {
+      // Compute the description hash
+      const values = [0]
+
+      // Execute the proposal
+      const tx = await this.governorContract.execute(targets, values, calldatas, descriptionHash);
+      await tx.wait();
+      console.log("Proposal execution transaction submitted: ", tx.hash);
+      return tx.hash;
+    } catch (error) {
+      console.error("Failed to execute proposal", error);
+      throw new Error("Failed to execute proposal");
+    }
+  }
   
 }
