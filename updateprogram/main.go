@@ -5,12 +5,15 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"encoding/hex"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	bsclient "github.com/ipfs/boxo/bitswap/client"
 	bsnet "github.com/ipfs/boxo/bitswap/network"
 	bsserver "github.com/ipfs/boxo/bitswap/server"
@@ -22,8 +25,9 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/joho/godotenv"
 
-	// "github.com/ethereum/go-ethereum"
-	// "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
@@ -215,21 +219,61 @@ func main() {
 
 		{ // Event loop.
 			ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
+			if err != nil {
+				panic(err)
+			}
 
-			contract := ""
+			eventHash := ethcrypto.Keccak256Hash([]byte("VotedProgramData(bytes[])"))
+			contractAddress := "0xEa6A26A95618062c36F824F1Cc48fCB94e1Adb1a"
 
-			// Get the first
+			query := ethereum.FilterQuery{
+				FromBlock: nil,
+				ToBlock:   nil,
+				Addresses: []common.Address{common.HexToAddress(contractAddress)},
+				Topics:    [][]common.Hash{{eventHash}},
+			}
+
+			logChannel := make(chan ethtypes.Log)
+			ethClient.SubscribeFilterLogs(ctx, query, logChannel)
+			ticker := time.Tick(time.Second * 3)
+
+			parsedAbi, err := abi.JSON(strings.NewReader(contractAbi))
 
 			if err != nil {
 				panic(err)
 			} else {
 				// Event loop.
 
-				for {
-					str := nextEvent(ctx, ethClient)
-					fmt.Println("New event! ", str)
+				// for {
+				// 	str := nextEvent(ctx, nil)
+				// 	upgrade(str)
+				// }
 
-					upgrade(str)
+				for {
+					select {
+					case l := <-logChannel:
+						fmt.Println("Got a log!")
+
+						test := struct {
+							// XXX: Might fail because the project might
+							data []byte
+						}{}
+
+						err := parsedAbi.UnpackIntoInterface(&test, "VotedProgramData", l.Data)
+						if err != nil {
+							panic(err)
+							upgrade("dont")
+						} else {
+							fmt.Println(hex.EncodeToString(test.data))
+							// str := nextEvent(ctx, ethClient)
+							// fmt.Println("New event! ", str)
+
+							// upgrade(str)
+						}
+
+					case <-ticker:
+						fmt.Println("Still waiting...")
+					}
 				}
 			}
 		}
