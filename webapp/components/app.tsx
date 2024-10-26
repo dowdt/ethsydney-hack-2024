@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
@@ -30,6 +30,19 @@ export default function App() {
             const instance = await web3Modal.connect();
             const web3Provider = new ethers.BrowserProvider(instance);
             setProvider(web3Provider);
+
+            // Subscribe to provider events
+            instance.on("accountsChanged", () => {
+                window.location.reload();
+            });
+
+            instance.on("chainChanged", () => {
+                window.location.reload();
+            });
+
+            instance.on("disconnect", () => {
+                window.location.reload();
+            });
 
             const signer = await web3Provider.getSigner();
             const address = await signer.getAddress();
