@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
+import VotingInterface from './VotingInterface';
 
 export default function App() {
     const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
@@ -270,9 +271,7 @@ export default function App() {
                     )}
 
                     {activeTab === 'vote' && hasNFT && (
-                        <div className="text-center p-8 text-gray-400">
-                            Voting interface will be implemented in a future update
-                        </div>
+                        <VotingInterface />
                     )}
                 </div>
             </div>
