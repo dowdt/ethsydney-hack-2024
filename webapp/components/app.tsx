@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
+import VotingInterface from './VotingInterface';
 
 export default function App() {
     const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
@@ -13,11 +14,11 @@ export default function App() {
     const [sourceURL, setSourceURL] = useState<string>("");
     const [targetId, setTargetId] = useState<string>("");
     const [exeCID, setExeCID] = useState<string>("");
-    const [metadataCID, setMetadataCID] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const web3Modal = new Web3Modal({
         network: "mainnet", // TODO: connect to actual network
-        cacheProvider: false,
+        cacheProvider: false, // Changed to false to prevent auto-connecting
         providerOptions: {
             metamask: {
                 package: null
@@ -27,6 +28,7 @@ export default function App() {
 
     const connectWallet = async () => {
         try {
+            setIsLoading(true);
             const instance = await web3Modal.connect();
             const web3Provider = new ethers.BrowserProvider(instance);
             setProvider(web3Provider);
@@ -41,7 +43,7 @@ export default function App() {
             });
 
             instance.on("disconnect", () => {
-                window.location.reload();
+                disconnectWallet();
             });
 
             const signer = await web3Provider.getSigner();
@@ -51,8 +53,17 @@ export default function App() {
             console.log("Connected to address:", address);
         } catch (error) {
             console.error("Failed to connect wallet:", error);
+        } finally {
+            setIsLoading(false);
         }
     }
+
+    const disconnectWallet = () => {
+        web3Modal.clearCachedProvider();
+        setProvider(null);
+        setAccount("");
+        setHasNFT(false);
+    };
 
     const checkForNFT = async (address: string) => {
         // TODO: Implement actual NFT check for voting rights
@@ -66,9 +77,19 @@ export default function App() {
             sourceURL,
             targetId,
             exeCID,
-            metadataCID,
             proposer: account
         });
+    }
+
+    // Show loading state while connecting
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
+                <div className="glass glow max-w-lg w-full p-8 rounded-xl text-center">
+                    <h1 className="text-2xl text-gray-200">Connecting...</h1>
+                </div>
+            </div>
+        );
     }
 
     // Landing page when not connected
@@ -103,7 +124,7 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-shapes">
-            {/* New Header Section */}
+            {/* Header Section */}
             <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex items-center justify-between py-4">
@@ -138,10 +159,16 @@ export default function App() {
                                     NFT Holder
                                 </span>
                             )}
-                            <div className="glass px-4 py-2 rounded-lg">
+                            <div className="glass px-4 py-2 rounded-lg flex items-center space-x-4">
                                 <span className="text-sm text-gray-300">
                                     {account.slice(0, 6)}...{account.slice(-4)}
                                 </span>
+                                <button
+                                    onClick={disconnectWallet}
+                                    className="text-sm text-red-300 hover:text-red-400"
+                                >
+                                    Disconnect
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -151,7 +178,7 @@ export default function App() {
             {/* Main Content */}
             <div className="max-w-6xl mx-auto p-4">
                 <div className="glass glow rounded-xl p-8 mb-6 mt-6">
-                    {/* Mobile Tabs - Only visible on small screens */}
+                    {/* Mobile Tabs */}
                     <div className="md:hidden flex space-x-4 mb-6">
                         <button
                             className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
@@ -193,7 +220,7 @@ export default function App() {
                             />
                             <input
                                 className="cyber-input w-full"
-                                placeholder="Target ID (hex)"
+                                placeholder="Target ID"
                                 value={targetId}
                                 onChange={(e) => setTargetId(e.target.value)}
                                 required
@@ -203,13 +230,6 @@ export default function App() {
                                 placeholder="Executable CID"
                                 value={exeCID}
                                 onChange={(e) => setExeCID(e.target.value)}
-                                required
-                            />
-                            <input
-                                className="cyber-input w-full"
-                                placeholder="Metadata CID"
-                                value={metadataCID}
-                                onChange={(e) => setMetadataCID(e.target.value)}
                                 required
                             />
                             <button
@@ -228,10 +248,18 @@ export default function App() {
                     )}
 
                     {activeTab === 'vote' && hasNFT && (
-                        <div className="text-center p-8 text-gray-400">
-                            Voting interface will be implemented in a future update
-                        </div>
+                        <VotingInterface />
                     )}
+                </div>
+            </div>
+            <div className="w-full py-8 flex items-center justify-center bg-black/30 backdrop-blur-sm border-t border-white/10">
+                <div className="flex items-center gap-4">
+                    <span className="text-xl text-gray-300">Powered by</span>
+                    <img
+                        src="/rise-logo.png"
+                        alt="RISE Logo"
+                        className="h-12 object-contain hover:scale-105 transition-transform"
+                    />
                 </div>
             </div>
         </div>
