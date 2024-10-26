@@ -61,25 +61,25 @@ export default function App() {
     // Landing page when not connected
     if (!account) {
         return (
-            <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="glass max-w-lg w-full p-8 rounded-xl text-center">
+            <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
+                <div className="glass glow max-w-lg w-full p-8 rounded-xl text-center">
                     <h1 className="text-5xl font-bold gradient-text mb-4">DAOputer</h1>
                     <p className="text-xl text-gray-200 mb-8">
                         Decentralized Computation Governance Platform
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div className="glass p-6 rounded-lg">
+                        <div className="glass p-6 rounded-lg hover:scale-105 transition-transform">
                             <h3 className="text-xl font-semibold text-white mb-2">Submit Proposals</h3>
                             <p className="text-gray-300">Anyone can submit computational proposals to the network</p>
                         </div>
-                        <div className="glass p-6 rounded-lg">
+                        <div className="glass p-6 rounded-lg hover:scale-105 transition-transform">
                             <h3 className="text-xl font-semibold text-white mb-2">Vote on Changes</h3>
                             <p className="text-gray-300">NFT holders can participate in governance decisions</p>
                         </div>
                     </div>
                     <button
                         onClick={connectWallet}
-                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        className="cyberpunk-button w-full"
                     >
                         Connect Wallet to Begin
                     </button>
@@ -89,10 +89,10 @@ export default function App() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-4">
-            <div className="glass rounded-xl p-8 mb-6">
+        <div className="max-w-6xl mx-auto p-4 bg-shapes">
+            <div className="glass glow rounded-xl p-8 mb-6">
                 <div className="flex items-center justify-between p-4 rounded-lg mb-6 glass">
-                    <span>Connected: {account}</span>
+                    <span className="gradient-text font-semibold">Connected: {account}</span>
                     {!hasNFT && activeTab === 'vote' && (
                         <span className="text-yellow-300">⚠️ NFT required for voting</span>
                     )}
@@ -101,14 +101,14 @@ export default function App() {
                 <div className="flex space-x-4 border-b border-white/10 mb-6">
                     <button
                         className={`px-6 py-3 text-gray-300 hover:text-white transition-colors
-                            ${activeTab === 'submit' ? 'border-b-2 border-blue-500 text-white' : ''}`}
+                            ${activeTab === 'submit' ? 'gradient-text font-semibold' : ''}`}
                         onClick={() => setActiveTab('submit')}
                     >
                         Submit Proposal
                     </button>
                     <button
                         className={`px-6 py-3 text-gray-300 hover:text-white transition-colors
-                            ${activeTab === 'vote' ? 'border-b-2 border-blue-500 text-white' : ''}
+                            ${activeTab === 'vote' ? 'gradient-text font-semibold' : ''}
                             ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
                         onClick={() => hasNFT ? setActiveTab('vote') : null}
                         title={!hasNFT ? "NFT required for voting" : ""}
@@ -120,35 +120,35 @@ export default function App() {
                 {activeTab === 'submit' && (
                     <form onSubmit={handleProposalSubmit} className="space-y-5">
                         <input
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
+                            className="cyber-input w-full"
                             placeholder="Proposal Name"
                             value={proposalName}
                             onChange={(e) => setProposalName(e.target.value)}
                             required
                         />
                         <input
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
+                            className="cyber-input w-full"
                             placeholder="Source URL (GitHub)"
                             value={sourceURL}
                             onChange={(e) => setSourceURL(e.target.value)}
                             required
                         />
                         <input
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
+                            className="cyber-input w-full"
                             placeholder="Target ID (hex)"
                             value={targetId}
                             onChange={(e) => setTargetId(e.target.value)}
                             required
                         />
                         <input
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
+                            className="cyber-input w-full"
                             placeholder="Executable CID"
                             value={exeCID}
                             onChange={(e) => setExeCID(e.target.value)}
                             required
                         />
                         <input
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
+                            className="cyber-input w-full"
                             placeholder="Metadata CID"
                             value={metadataCID}
                             onChange={(e) => setMetadataCID(e.target.value)}
@@ -156,7 +156,7 @@ export default function App() {
                         />
                         <button
                             type="submit"
-                            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                            className="cyberpunk-button w-full"
                         >
                             Submit Proposal
                         </button>
@@ -164,7 +164,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'vote' && !hasNFT && (
-                    <div className="p-4 bg-red-500/10 text-red-300 rounded-lg">
+                    <div className="glass p-4 text-red-300 rounded-lg">
                         You need to own the required NFT to participate in voting.
                     </div>
                 )}
