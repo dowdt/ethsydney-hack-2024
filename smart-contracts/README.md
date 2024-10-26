@@ -11,3 +11,7 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.ts
 ```
+
+
+Resources:
+* https://docs.openzeppelin.com/contracts/5.x/api/token/erc721#ERC721Votes
