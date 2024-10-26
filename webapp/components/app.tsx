@@ -5,11 +5,8 @@ import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 
 export default function App() {
-    // Existing wallet connection states
     const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
     const [account, setAccount] = useState<string>("");
-
-    // New states for DAO functionality
     const [activeTab, setActiveTab] = useState<'submit'|'vote'>('submit');
     const [hasNFT, setHasNFT] = useState<boolean>(false);
     const [proposalName, setProposalName] = useState<string>("");
@@ -18,9 +15,8 @@ export default function App() {
     const [exeCID, setExeCID] = useState<string>("");
     const [metadataCID, setMetadataCID] = useState<string>("");
 
-    // Your existing Web3Modal configuration
     const web3Modal = new Web3Modal({
-        network: "mainnet",
+        network: "mainnet", // TODO: connect to actual network
         cacheProvider: false,
         providerOptions: {
             metamask: {
@@ -29,7 +25,6 @@ export default function App() {
         }
     });
 
-    // Your existing connect wallet function
     const connectWallet = async () => {
         try {
             const instance = await web3Modal.connect();
@@ -39,26 +34,20 @@ export default function App() {
             const signer = await web3Provider.getSigner();
             const address = await signer.getAddress();
             setAccount(address);
-
-            // Add NFT check after wallet connection (placeholder)
             checkForNFT(address);
             console.log("Connected to address:", address);
-
         } catch (error) {
             console.error("Failed to connect wallet:", error);
         }
     }
 
-    // New function to check for NFT ownership
     const checkForNFT = async (address: string) => {
-        // TODO: Implement actual NFT check logic
+        // TODO: Implement actual NFT check for voting rights
         setHasNFT(true); // Placeholder: set to true for testing
     }
 
-    // Handle proposal submission
     const handleProposalSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement backend connection
         console.log("Submitting proposal:", {
             name: proposalName,
             sourceURL,
@@ -69,119 +58,119 @@ export default function App() {
         });
     }
 
-    // Basic styles for the DAO interface
-    const styles = {
-        container: 'max-w-4xl mx-auto p-4',
-        card: 'bg-white rounded-lg shadow-md p-6 mb-4',
-        header: 'border-b pb-4 mb-4',
-        title: 'text-2xl font-bold',
-        subtitle: 'text-gray-600',
-        tabs: 'flex border-b mb-4',
-        tab: 'px-4 py-2 cursor-pointer',
-        activeTab: 'border-b-2 border-blue-500',
-        form: 'space-y-4',
-        input: 'w-full p-2 border rounded',
-        button: 'w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600',
-        alert: 'bg-red-100 text-red-700 p-4 rounded mb-4',
-        connected: 'bg-green-100 text-green-700 p-4 rounded mb-4'
-    };
-
-    // If not connected, show connect button
+    // Landing page when not connected
     if (!account) {
         return (
-            <div className={styles.container}>
-                <div className={styles.card}>
-                    <button className={styles.button} onClick={connectWallet}>
-                        Connect Wallet
+            <div className="flex min-h-screen items-center justify-center p-4">
+                <div className="glass max-w-lg w-full p-8 rounded-xl text-center">
+                    <h1 className="text-5xl font-bold gradient-text mb-4">DAOputer</h1>
+                    <p className="text-xl text-gray-200 mb-8">
+                        Decentralized Computation Governance Platform
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="glass p-6 rounded-lg">
+                            <h3 className="text-xl font-semibold text-white mb-2">Submit Proposals</h3>
+                            <p className="text-gray-300">Anyone can submit computational proposals to the network</p>
+                        </div>
+                        <div className="glass p-6 rounded-lg">
+                            <h3 className="text-xl font-semibold text-white mb-2">Vote on Changes</h3>
+                            <p className="text-gray-300">NFT holders can participate in governance decisions</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={connectWallet}
+                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                        Connect Wallet to Begin
                     </button>
                 </div>
             </div>
         );
     }
 
-    // If no NFT, show warning
-    if (!hasNFT) {
-        return (
-            <div className={styles.container}>
-                <div className={styles.alert}>
-                    You need to own the required NFT to participate in this DAO.
-                </div>
-            </div>
-        );
-    }
-
-    // Main DAO interface
     return (
-        <div className={styles.container}>
-            <div className={styles.card}>
-                {/* Connected Account Banner */}
-                <div className={styles.connected}>
-                    Connected: {account}
+        <div className="max-w-6xl mx-auto p-4">
+            <div className="glass rounded-xl p-8 mb-6">
+                <div className="flex items-center justify-between p-4 rounded-lg mb-6 glass">
+                    <span>Connected: {account}</span>
+                    {!hasNFT && activeTab === 'vote' && (
+                        <span className="text-yellow-300">⚠️ NFT required for voting</span>
+                    )}
                 </div>
 
-                {/* Tabs */}
-                <div className={styles.tabs}>
+                <div className="flex space-x-4 border-b border-white/10 mb-6">
                     <button
-                        className={`${styles.tab} ${activeTab === 'submit' ? styles.activeTab : ''}`}
+                        className={`px-6 py-3 text-gray-300 hover:text-white transition-colors
+                            ${activeTab === 'submit' ? 'border-b-2 border-blue-500 text-white' : ''}`}
                         onClick={() => setActiveTab('submit')}
                     >
                         Submit Proposal
                     </button>
                     <button
-                        className={`${styles.tab} ${activeTab === 'vote' ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab('vote')}
+                        className={`px-6 py-3 text-gray-300 hover:text-white transition-colors
+                            ${activeTab === 'vote' ? 'border-b-2 border-blue-500 text-white' : ''}
+                            ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => hasNFT ? setActiveTab('vote') : null}
+                        title={!hasNFT ? "NFT required for voting" : ""}
                     >
                         Vote on Proposals
                     </button>
                 </div>
 
-                {/* Submit Proposal Form */}
                 {activeTab === 'submit' && (
-                    <form onSubmit={handleProposalSubmit} className={styles.form}>
+                    <form onSubmit={handleProposalSubmit} className="space-y-5">
                         <input
-                            className={styles.input}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
                             placeholder="Proposal Name"
                             value={proposalName}
                             onChange={(e) => setProposalName(e.target.value)}
                             required
                         />
                         <input
-                            className={styles.input}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
                             placeholder="Source URL (GitHub)"
                             value={sourceURL}
                             onChange={(e) => setSourceURL(e.target.value)}
                             required
                         />
                         <input
-                            className={styles.input}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
                             placeholder="Target ID (hex)"
                             value={targetId}
                             onChange={(e) => setTargetId(e.target.value)}
                             required
                         />
                         <input
-                            className={styles.input}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
                             placeholder="Executable CID"
                             value={exeCID}
                             onChange={(e) => setExeCID(e.target.value)}
                             required
                         />
                         <input
-                            className={styles.input}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white"
                             placeholder="Metadata CID"
                             value={metadataCID}
                             onChange={(e) => setMetadataCID(e.target.value)}
                             required
                         />
-                        <button type="submit" className={styles.button}>
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
                             Submit Proposal
                         </button>
                     </form>
                 )}
 
-                {/* Voting Interface Placeholder */}
-                {activeTab === 'vote' && (
-                    <div className="text-center p-8 text-gray-500">
+                {activeTab === 'vote' && !hasNFT && (
+                    <div className="p-4 bg-red-500/10 text-red-300 rounded-lg">
+                        You need to own the required NFT to participate in voting.
+                    </div>
+                )}
+
+                {activeTab === 'vote' && hasNFT && (
+                    <div className="text-center p-8 text-gray-400">
                         Voting interface will be implemented in a future update
                     </div>
                 )}

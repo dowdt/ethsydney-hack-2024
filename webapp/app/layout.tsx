@@ -7,6 +7,7 @@ const geistSans = localFont({
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
@@ -14,22 +15,30 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "App thing",
-  description: "Made by yours truly",
+  title: "DAOputer",
+  description: "Decentralized Computation Governance Platform",
+  icons: {
+    icon: '/favicon.ico',
+  },
+  openGraph: {
+    title: 'DAOputer',
+    description: 'Decentralized Computation Governance Platform',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
-  children,
-}: Readonly<{
+                                     children,
+                                   }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+      <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 min-h-screen`}
       >
-        {children}
+      {children}
       </body>
-    </html>
+      </html>
   );
 }
