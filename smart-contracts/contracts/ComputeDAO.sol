@@ -22,7 +22,17 @@ contract ComputeDAO is Governor, GovernorCountingSimple, GovernorVotes, Governor
         return 3 minutes;
     }
 
-    // The following functions are overrides required by Solidity.
+    event VotedProgramData(bytes[] data);
+
+    function _executeOperations(
+        uint256 /* proposalId */,
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 /*descriptionHash*/
+    ) internal override  {
+        emit VotedProgramData(calldatas);
+    }
 
     function quorum(uint256 blockNumber)
         public
