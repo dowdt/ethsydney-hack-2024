@@ -16,16 +16,16 @@ export default function ProposalsPage() {
   const [isExecutable, setIsExecutable] = useState<boolean | null>(null);
   const [voteCounts, setVoteCounts] = useState<{ forVotes: number; againstVotes: number; abstainVotes: number } | null>(null);
 
-  const fetchProposalVotes = async () => {
-    if (contractService && proposalId) {
-      try {
-        const votes = await contractService.getProposalVotes(proposalId);
-        setVoteCounts(votes);
-      } catch (error) {
-        console.error("Failed to fetch proposal votes:", error);
-      }
-    }
-  };
+//   const fetchProposalVotes = async () => {
+//     if (contractService && proposalId) {
+//       try {
+//         const votes = await contractService.getProposalVotes(proposalId);
+//         setVoteCounts(votes);
+//       } catch (error) {
+//         console.error("Failed to fetch proposal votes:", error);
+//       }
+//     }
+//   };
   
 
 
@@ -143,7 +143,7 @@ export default function ProposalsPage() {
             <p className={styles.text}>Connected Account: {account.slice(0, 6)}...{account.slice(-4)}</p>
           </div>
 
-          <button onClick={fetchProposalVotes} className={styles.button}>Fetch Proposal Votes</button>
+          {/* <button onClick={fetchProposalVotes} className={styles.button}>Fetch Proposal Votes</button> */}
 
         {voteCounts && (
           <div>
@@ -186,7 +186,7 @@ export default function ProposalsPage() {
                 <p>Proposal ID: {proposal.proposalId}</p>
                 <p>Proposer: {proposal.proposer}</p>
                 <p>Targets: {proposal.targets.join(", ")}</p>
-                <p>Description: {proposal.description}</p>
+                <p>Description: {proposal.descriptionHash}</p>
                 <p> Votes: {}</p>
               </li>
             ))}

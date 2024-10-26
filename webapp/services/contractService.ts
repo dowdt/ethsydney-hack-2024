@@ -1,61 +1,85 @@
-import { ethers } from "ethers";
+import { ethers, BigNumberish } from "ethers";
 import GovernorABI from "@/utils/contractABI.json";
 
 export class ContractService {
   private governorContract: ethers.Contract;
 
   constructor(signer: ethers.JsonRpcSigner) {
-    let governorContractAddress = process.env.GOVERNANCE_CONTRACT;
-    if (!governorContractAddress) {
-      governorContractAddress = "0xEa6A26A95618062c36F824F1Cc48fCB94e1Adb1a" // Default to hardcoded value
-    }
-
+    const governorContractAddress = process.env.GOVERNANCE_CONTRACT || "0xEa6A26A95618062c36F824F1Cc48fCB94e1Adb1a";
     this.governorContract = new ethers.Contract(governorContractAddress, GovernorABI, signer);
   }
 
-  // Get all created proposals
+  // Fetch all created proposals without filtering by proposalId
+  // Fetch all created proposals without filtering by proposalId
   async getCreatedProposals(): Promise<any[]> {
     try {
-      const filter = this.governorContract.filters.ProposalCreated();
-      const events = await this.governorContract.queryFilter(filter);
-      
-      // Map each event to a readable proposal object
-      const proposals = events.map(event => ({
-        proposalId: event.args?.proposalId,
-        proposer: event.args?.proposer,
-        targets: event.args?.targets,
-        values: event.args?.values,
-        calldatas: event.args?.calldatas,
-        startBlock: event.args?.startBlock,
-        endBlock: event.args?.endBlock,
-        description: event.args?.description,
-      }));
-      
-      console.log("Created Proposals: ", proposals);
-      return proposals;
+        const filter = this.governorContract.filters.ProposalCreated();
+        const events = await this.governorContract.queryFilter(filter);
+
+        console.log("Raw Event Data: ", JSON.stringify(events));
+
+        // Map each event to a structured proposal object
+        const proposals = events.map(event => {
+            const proposalId = event.args?.proposalId?.toString() ?? "";
+            const proposer = event.args?.proposer ?? "";
+            const targets = Array.isArray(event.args?.targets) 
+                ? [...event.args.targets] 
+                : []; // Force to array
+            const values = Array.isArray(event.args?.values) 
+                ? event.args.values.map(v => BigInt(v)) 
+                : [BigInt(0)]; // Ensure values are BigInts
+            const calldatas = Array.isArray(event.args?.calldatas)
+                ? [...event.args.calldatas]
+                : [];
+            const descriptionHash = event.args?.description ?? "";
+            const startBlock = event.args?.startBlock ?? 0;
+            const endBlock = event.args?.endBlock ?? 0;
+
+            // Log missing values for debugging
+            if (!proposalId) console.warn("Missing proposalId in event data:", event);
+            if (!proposer) console.warn("Missing proposer in event data:", event);
+
+            return {
+                proposalId,
+                proposer,
+                targets,
+                values,
+                calldatas,
+                descriptionHash,
+                startBlock,
+                endBlock
+            };
+        });
+
+        console.log("Fetched Proposals: ", proposals);
+        return proposals;
     } catch (error) {
-      console.error("Failed to retrieve created proposals", error);
-      throw new Error("Failed to retrieve created proposals");
+        console.error("Failed to retrieve created proposals", error);
+        throw new Error("Failed to retrieve created proposals");
     }
-  }
+}
+
 
   // Check if a proposal is eligible for execution
   async isProposalExecutable(proposalId: string): Promise<boolean> {
     try {
       const state = await this.governorContract.state(proposalId);
       console.log("Proposal state: ", state);
-      return state === 4 || state === 5;
+      if (state === 4 || state === 5) {
+        return true;
+      } else {
+        return false;
+      }
     } catch (error) {
       console.error("Failed to check proposal state:", error);
       throw new Error("Failed to check if proposal is executable");
     }
   }
-  
 
   // Create a new proposal
-  async propose(targets: string[], values: number[], calldatas: string[], description: string): Promise<string> {
+  async propose(targets: string[], values: number[], calldatas: string[], descriptionHash: string): Promise<string> {
     try {
-      const tx = await this.governorContract.propose(targets, values, calldatas, description);
+      const tx = await this.governorContract.propose(targets, values, calldatas, descriptionHash);
       await tx.wait();
       console.log("Proposal transaction submitted: ", tx.hash);
       return tx.hash;
@@ -66,7 +90,7 @@ export class ContractService {
   }
 
   // Cast a vote on an existing proposal
-  async castVote(proposalId: number, support: number): Promise<string> {
+  async castVote(proposalId: string, support: number): Promise<string> {
     try {
       const tx = await this.governorContract.castVote(proposalId, support);
       await tx.wait();
@@ -78,71 +102,54 @@ export class ContractService {
     }
   }
 
-  // View votes on a proposal
+  // Fetch all votes for a proposal by querying all VoteCast events and tallying up the votes
   async getProposalVotes(proposalId: string): Promise<{ forVotes: number; againstVotes: number; abstainVotes: number }> {
     try {
-      // Initialize interface for decoding
-      const governorInterface = new ethers.Interface(GovernorABI);
-      
-      // Fetch all VoteCast events for the specified proposalId
-      const filter = this.governorContract.filters.VoteCast(null, proposalId);
-      const events = await this.governorContract.queryFilter(filter);
+      // Call the proposalVotes function directly from the contract to get vote counts
+      const [againstVotes, forVotes, abstainVotes] = await this.governorContract.proposalVotes(proposalId);
   
-      // Initialize vote counters
-      let forVotes = 0;
-      let againstVotes = 0;
-      let abstainVotes = 0;
-  
-      // Tally votes by decoding each event's data
-      events.forEach(event => {
-        const decodedData = governorInterface.decodeEventLog("VoteCast", event.data, event.topics);
-        
-        // Extract support and weight from decoded data
-        const support = decodedData.support;
-        const weight = parseInt(decodedData.weight.toString(), 10); // Convert weight to integer
-  
-        // Count votes based on the support value
-        switch (support) {
-          case 0: // Against
-            againstVotes += weight;
-            break;
-          case 1: // For
-            forVotes += weight;
-            break;
-          case 2: // Abstain
-            abstainVotes += weight;
-            break;
-          default:
-            console.warn("Unknown support value:", support);
-        }
-      });
-  
-      return { forVotes, againstVotes, abstainVotes };
+      // Return the parsed votes as numbers
+      return {
+        forVotes: forVotes,
+        againstVotes: againstVotes,
+        abstainVotes: abstainVotes,
+      };
     } catch (error) {
       console.error("Failed to get proposal votes", error);
       throw new Error("Failed to get proposal votes");
     }
   }
+  
 
   // Execute a proposal with the same parameters used to create it
   async executeProposal(
     targets: string[],
     calldatas: string[],
     descriptionHash: string
-  ): Promise<string> {
+): Promise<string> {
     try {
-      // Compute the description hash
-      const values = [0]
+        // Since values are always zero and unused, we can default to a single-element array
+        const values = [BigInt(0)];
 
-      // Execute the proposal
-      const tx = await this.governorContract.execute(targets, values, calldatas, descriptionHash);
-      await tx.wait();
-      console.log("Proposal execution transaction submitted: ", tx.hash);
-      return tx.hash;
+        // Log inputs for debugging
+        console.log("Executing proposal with parameters:", { 
+            targets, 
+            calldatas, 
+            descriptionHash 
+        });
+
+        // Execute the proposal
+        const tx = await this.governorContract.execute(targets, values, calldatas, descriptionHash);
+        await tx.wait();
+        console.log("Proposal execution transaction submitted:", tx.hash);
+        return tx.hash;
     } catch (error) {
-      console.error("Failed to execute proposal", error);
-      throw new Error("Failed to execute proposal");
+        console.error("Failed to execute proposal:", error.message);
+        console.error(error.stack);
+        throw new Error("Failed to execute proposal");
     }
-  }
+}
+
+
   
 }
