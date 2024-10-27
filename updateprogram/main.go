@@ -5,15 +5,15 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"io"
+	"math/big"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
-	"encoding/hex"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+
 	bsclient "github.com/ipfs/boxo/bitswap/client"
 	bsnet "github.com/ipfs/boxo/bitswap/network"
 	bsserver "github.com/ipfs/boxo/bitswap/server"
@@ -124,7 +124,10 @@ func main() {
 		bservice := blockservice.New(bstore, client)
 		bsnet.Start(client, server)
 
-		addresses := strings.Split(os.Getenv("AUTOCONNECT_ADDRESSES"), " ")
+		addresses := make([]string, 0)
+		// Seed node for network
+		addresses = append(addresses, "/ip4/45.32.243.35/tcp/4001/p2p/12D3KooWE5jRAPoZQSe59FQpsftBJ1Gxj4NquaHT152tso6hCuAm")
+		addresses = append(addresses, strings.Split(os.Getenv("AUTOCONNECT_ADDRESSES"), " ")...)
 		for i := range addresses {
 			connectFromString(ctx, h, addresses[i])
 		}
@@ -173,6 +176,8 @@ func main() {
 			return buf.Bytes(), nil
 		}
 
+		var cmd *exec.Cmd = &exec.Cmd{}
+
 		upgrade := func(str string) {
 			c, err := cid.Parse(str)
 			if err != nil {
@@ -184,11 +189,7 @@ func main() {
 				if err != nil {
 					fmt.Println("Failed to parse cid: ", str)
 				} else {
-					fmt.Println("Success, got: ")
-					fmt.Println(len(bytes))
-
-					// Now we interpret as a binary file.
-
+					fmt.Println("Running: ")
 					// TODO: Check that it's an actual executable type.
 					f, err := os.CreateTemp("", "exe-*.bin")
 					if err != nil {
@@ -205,12 +206,21 @@ func main() {
 							f.Close()
 						}
 
-						cmd := exec.Command(f.Name())
+						if cmd.Process != nil {
+							err := cmd.Process.Kill()
+							if err != nil {
+								fmt.Println("Failed to kill.")
+							}
+						}
+
+						cmd = exec.Command(f.Name())
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
 
-						if err := cmd.Run(); err != nil {
-							panic(err)
+						err := cmd.Start()
+
+						if err != nil {
+							fmt.Println("Program returned error.")
 						}
 					}
 				}
@@ -218,63 +228,69 @@ func main() {
 		}
 
 		{ // Event loop.
-			// ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
-			ethClient, err := ethclient.Dial("https://testnet.riselabs.xyz")
+			ethClient, err := ethclient.Dial(os.Getenv("RPC_URL"))
+			// ethClient, err := ethclient.Dial("https://testnet.riselabs.xyz")
 			if err != nil {
 				panic(err)
 			}
 
-			eventHash := ethcrypto.Keccak256Hash([]byte("VotedProgramData(bytes[])"))
+			eventHash := ethcrypto.Keccak256Hash([]byte("VoteCastWithParams(address,uint256,uint8,uint256,string,bytes)"))
+
 			// otherEventHash := ethcrypto.Keccak256Hash([]byte("VotedProgramData(bytes[])"))
-			contractAddress := "0x71933465B8FC811F93049BBC18a8AdbECc79b5b8"
+			// contractAddress := "0x71933465B8FC811F93049BBC18a8AdbECc79b5b8"
+			// contractAddress := "0x71933465B8FC811F93049BBC18a8AdbECc79b5b8"
+			contractAddress := os.Getenv("CONTRACT_ADDR")
 
-			query := ethereum.FilterQuery{
-				FromBlock: nil,
-				ToBlock:   nil,
-				Addresses: []common.Address{common.HexToAddress(contractAddress)},
-				Topics:    [][]common.Hash{{eventHash}},
-			}
-
-			logChannel := make(chan ethtypes.Log)
-			ethClient.SubscribeFilterLogs(ctx, query, logChannel)
 			ticker := time.Tick(time.Second * 3)
 
 			parsedAbi, err := abi.JSON(strings.NewReader(contractAbi))
+			var lastLog uint = 0
 
 			if err != nil {
 				panic(err)
 			} else {
 				// Event loop.
 
-				// for {
-				// 	str := nextEvent(ctx, nil)
-				// 	upgrade(str)
-				// }
-
 				for {
 					select {
-					case l := <-logChannel:
-						fmt.Println("Got a log!")
-
-						test := struct {
-							// XXX: Might fail because the project might
-							data []byte
-						}{}
-
-						err := parsedAbi.UnpackIntoInterface(&test, "VotedProgramData", l.Data)
-						if err != nil {
-							panic(err)
-							upgrade("dont")
-						} else {
-							fmt.Println(hex.EncodeToString(test.data))
-							// str := nextEvent(ctx, ethClient)
-							// fmt.Println("New event! ", str)
-
-							// upgrade(str)
+					case <-ticker:
+						query := ethereum.FilterQuery{
+							FromBlock: nil,
+							ToBlock:   nil,
+							Addresses: []common.Address{common.HexToAddress(contractAddress)},
+							Topics:    [][]common.Hash{{eventHash}},
 						}
 
-					case <-ticker:
-						fmt.Println("Still waiting...")
+						logs, err := ethClient.FilterLogs(ctx, query)
+						if err != nil {
+							panic(err)
+						}
+
+						if len(logs) > 0 {
+							l := logs[len(logs)-1]
+
+							if uint(l.BlockNumber) > lastLog {
+								fmt.Println("Found a new log!")
+								lastLog = uint(l.BlockNumber)
+
+								test := struct {
+									ProposalId *big.Int `abi:"proposalId"`
+									Support    uint8    `abi:"support"`
+									Weight     *big.Int `abi:"weight"`
+									Reason     string   `abi:"reason"`
+									Params     []byte   `abi:"params"`
+								}{}
+
+								err := parsedAbi.UnpackIntoInterface(&test, "VoteCastWithParams", l.Data)
+								if err != nil {
+									panic(err)
+
+								} else {
+									// Try to run as a cid.
+									upgrade(string(test.Params))
+								}
+							}
+						}
 					}
 				}
 			}
