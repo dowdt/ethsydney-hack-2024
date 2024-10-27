@@ -10,4 +10,4 @@ Distributed compute, controlled by a DAO (organisation of people operating on th
 
 ComputeToken: `0x822231411767E1AD2CEA18f138069E8065A6B4d3`
 
-ComputeDAO: `0xEa6A26A95618062c36F824F1Cc48fCB94e1Adb1a`
+ComputeDAO: `0x521BC5Ac79AE22C081d9C615504e4F642C672BE2`
