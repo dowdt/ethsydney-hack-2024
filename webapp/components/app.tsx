@@ -1,73 +1,31 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
+import VotingInterface from "./VotingInterface";
 import { ContractService } from "@/services/contractService";
-import Link from 'next/link';
 
 export default function App() {
-    const [provider, setProvider] = useState<ethers.BrowserProvider|null>(null);
+    const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [account, setAccount] = useState<string>("");
-    const [activeTab, setActiveTab] = useState<'submit'|'vote'>('submit');
+    const [activeTab, setActiveTab] = useState<'submit' | 'vote'>('submit');
     const [hasNFT, setHasNFT] = useState<boolean>(false);
     const [proposalName, setProposalName] = useState<string>("");
     const [sourceURL, setSourceURL] = useState<string>("");
     const [targetId, setTargetId] = useState<string>("");
     const [exeCID, setExeCID] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(true);
-    const [contractService, setContractService] = useState<ContractService|null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [contractService, setContractService] = useState<ContractService | null>(null);
 
     const web3Modal = new Web3Modal({
-        network: "mainnet", // TODO: connect to actual network
-        cacheProvider: false, // Changed to false to prevent auto-connecting
+        cacheProvider: true, // Enable this to keep the provider cached
         providerOptions: {
             metamask: {
-                package: null
-            }
-        }
+                package: null,
+            },
+        },
     });
-
-    // Check for existing connection on mount
-    useEffect(() => {
-        const checkConnection = async () => {
-            if (web3Modal.cachedProvider) {
-                try {
-                    const instance = await web3Modal.connectTo(web3Modal.cachedProvider);
-                    const web3Provider = new ethers.BrowserProvider(instance);
-                    setProvider(web3Provider);
-
-                    const signer = await web3Provider.getSigner();
-                    const address = await signer.getAddress();
-                    setAccount(address);
-                    checkForNFT(address);
-
-                    setContractService(new ContractService(signer));
-
-                    // Set up event listeners
-                    instance.on("accountsChanged", () => {
-                        window.location.reload();
-                    });
-
-                    instance.on("chainChanged", () => {
-                        window.location.reload();
-                    });
-
-                    instance.on("disconnect", () => {
-                        web3Modal.clearCachedProvider();
-                        window.location.reload();
-                    });
-                } catch (error) {
-                    console.error("Failed to reconnect:", error);
-                    web3Modal.clearCachedProvider();
-                }
-            }
-            setIsLoading(false);
-        };
-
-        checkConnection();
-    }, []);
-
     const connectWallet = async () => {
         try {
             setIsLoading(true);
@@ -75,26 +33,17 @@ export default function App() {
             const web3Provider = new ethers.BrowserProvider(instance);
             setProvider(web3Provider);
 
-            // Subscribe to provider events
-            instance.on("accountsChanged", () => {
-                window.location.reload();
-            });
-
-            instance.on("chainChanged", () => {
-                window.location.reload();
-            });
-
-            instance.on("disconnect", () => {
-                disconnectWallet();
-            });
+            instance.on("accountsChanged", () => window.location.reload());
+            instance.on("chainChanged", () => window.location.reload());
+            instance.on("disconnect", () => disconnectWallet());
 
             const signer = await web3Provider.getSigner();
             const address = await signer.getAddress();
             setAccount(address);
-            checkForNFT(address);
 
-            // Initialize ContractService
-            setContractService(new ContractService(signer));
+            checkForNFT(address);
+            const service = new ContractService(signer);
+            setContractService(service);
 
             console.log("Connected to address:", address);
         } catch (error) {
@@ -102,7 +51,7 @@ export default function App() {
         } finally {
             setIsLoading(false);
         }
-    }
+    };
 
     const disconnectWallet = () => {
         web3Modal.clearCachedProvider();
@@ -114,36 +63,55 @@ export default function App() {
     const checkForNFT = async (address: string) => {
         // TODO: Implement actual NFT check for voting rights
         setHasNFT(true); // Placeholder: set to true for testing
-    }
+    };
 
     const handleProposalSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!contractService) {
-            console.error("ContractService is not initialized");
+        if (!proposalName || !exeCID) {
+            alert("Please complete all required fields.");
             return;
         }
+
+        if (!contractService) {
+            console.error("Contract service is not initialized.");
+            return;
+        }
+
         try {
-            console.log("Submitting proposal:", {
-                name: proposalName,
-                sourceURL,
-                targetId,
-                exeCID,
-                proposer: account
-            });
+            setIsLoading(true);
+            console.log("Submitting proposal:", { proposalName, sourceURL, targetId, exeCID, proposer: account });
 
-            const targets = [process.env.GOVERNANCE_CONTRACT || ""];
-            const values = [0];
-            const calldatas = ["0xdeadbeef"]; // Placeholder calldata
-            const description = proposalName;
+            // Submitting the proposal
+            await contractService.propose(
+                ["0x1069696934567890ABCDef123456789F12345678"],
+                ["0x0000000000000000000000000000000000000000"],
+                [exeCID],
+                ethers.keccak256(Buffer.from(proposalName))
+            );
 
-            const txHash = await contractService.propose(targets, values, calldatas, description);
-            console.log("Proposal submitted, transaction hash: ", txHash);
+            alert("Proposal submitted successfully!");
+            setProposalName("");
+            setSourceURL("");
+            setTargetId("");
+            setExeCID("");
         } catch (error) {
             console.error("Failed to submit proposal", error);
+            alert("Failed to submit proposal. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
-    }
+    };
 
-    // Show loading state while checking for existing connection
+    useEffect(() => {
+        if (provider) {
+            const initContractService = async () => {
+                const signer = await provider.getSigner();
+                setContractService(new ContractService(signer));
+            };
+            initContractService();
+        }
+    }, [provider]);
+
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
@@ -154,7 +122,6 @@ export default function App() {
         );
     }
 
-    // Landing page when not connected
     if (!account) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4 bg-shapes">
@@ -186,7 +153,6 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-shapes">
-            {/* Header Section */}
             <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex items-center justify-between py-4">
@@ -194,21 +160,13 @@ export default function App() {
                             <h1 className="text-4xl font-bold gradient-text">DAOputer</h1>
                             <div className="hidden md:flex space-x-6">
                                 <button
-                                    className={`px-4 py-2 rounded-lg transition-colors ${
-                                        activeTab === 'submit'
-                                            ? 'bg-white/10 text-white'
-                                            : 'text-gray-300 hover:text-white'
-                                    }`}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'submit' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'}`}
                                     onClick={() => setActiveTab('submit')}
                                 >
                                     Submit
                                 </button>
                                 <button
-                                    className={`px-4 py-2 rounded-lg transition-colors ${
-                                        activeTab === 'vote'
-                                            ? 'bg-white/10 text-white'
-                                            : 'text-gray-300 hover:text-white'
-                                    } ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'vote' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'} ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     onClick={() => hasNFT ? setActiveTab('vote') : null}
                                 >
                                     Vote
@@ -237,27 +195,17 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className="max-w-6xl mx-auto p-4">
                 <div className="glass glow rounded-xl p-8 mb-6 mt-6">
-                    {/* Mobile Tabs */}
                     <div className="md:hidden flex space-x-4 mb-6">
                         <button
-                            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                                activeTab === 'submit'
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-gray-300 hover:text-white'
-                            }`}
+                            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${activeTab === 'submit' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'}`}
                             onClick={() => setActiveTab('submit')}
                         >
                             Submit
                         </button>
                         <button
-                            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                                activeTab === 'vote'
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-gray-300 hover:text-white'
-                            } ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${activeTab === 'vote' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'} ${!hasNFT ? 'opacity-50 cursor-not-allowed' : ''}`}
                             onClick={() => hasNFT ? setActiveTab('vote') : null}
                         >
                             Vote
@@ -278,14 +226,12 @@ export default function App() {
                                 placeholder="Source URL (GitHub)"
                                 value={sourceURL}
                                 onChange={(e) => setSourceURL(e.target.value)}
-                                required
                             />
                             <input
                                 className="cyber-input w-full"
                                 placeholder="Target ID"
                                 value={targetId}
                                 onChange={(e) => setTargetId(e.target.value)}
-                                required
                             />
                             <input
                                 className="cyber-input w-full"
@@ -294,10 +240,7 @@ export default function App() {
                                 onChange={(e) => setExeCID(e.target.value)}
                                 required
                             />
-                            <button
-                                type="submit"
-                                className="cyberpunk-button w-full"
-                            >
+                            <button type="submit" className="cyberpunk-button w-full">
                                 Submit Proposal
                             </button>
                         </form>
@@ -309,11 +252,12 @@ export default function App() {
                         </div>
                     )}
 
-                    {activeTab === 'vote' && hasNFT && (
-                        <VotingInterface />
+                    {activeTab === 'vote' && hasNFT && contractService && (
+                        <VotingInterface contractService={contractService} />
                     )}
                 </div>
             </div>
+
             <div className="w-full py-8 flex items-center justify-center bg-black/30 backdrop-blur-sm border-t border-white/10">
                 <div className="flex items-center gap-4">
                     <span className="text-xl text-gray-300">Powered by</span>
