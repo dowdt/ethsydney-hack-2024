@@ -94,18 +94,18 @@ const VotingInterface = ({ contractService }: { contractService: ContractService
     fetchProposals();
   }, [contractService]);
 
-  const handleVote = async (proposalId: string) => {
+  const handleVote = async (proposal: Proposal) => {
     if (!contractService) return;
   
     try {
-      console.log("Casting vote for proposalId:", proposalId, "with support:", 1);
-      const txHash = await contractService.castVote(proposalId, 1);
+      console.log("Casting vote for proposalId:", proposal.proposalId, "with support:", 1);
+      const txHash = await contractService.castVote(proposal.proposalId, 1, proposal.calldatas);
       console.log("Vote cast transaction submitted, tx hash:", txHash);
   
       // Optionally fetch the updated vote counts from the contract directly
-      const updatedVotes = await contractService.getProposalVotes(proposalId);
+      const updatedVotes = await contractService.getProposalVotes(proposal.proposalId);
       console.log("Updated votes from contract:", updatedVotes);
-      
+
       await updatedVotes;
       loadProposals(contractService);
     } catch (error) {
@@ -198,7 +198,7 @@ const VotingInterface = ({ contractService }: { contractService: ContractService
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleVote(proposal.proposalId)}>
+                        <AlertDialogAction onClick={() => handleVote(proposal)}>
                           Confirm Vote
                         </AlertDialogAction>
                       </AlertDialogFooter>

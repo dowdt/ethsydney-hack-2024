@@ -22,14 +22,8 @@ export default function App() {
     const web3Modal = new Web3Modal({
         cacheProvider: true, // Enable this to keep the provider cached
         providerOptions: {
-            walletconnect: {
-                package: WalletConnectProvider,
-                options: {
-                    rpc: {
-                        11155931: "https://testnet.riselabs.xyz", // Custom Rise Sepolia RPC URL
-                    },
-                    chainId: 11155931,
-                },
+            metamask: {
+                package: null,
             },
         },
     });
@@ -120,7 +114,7 @@ export default function App() {
             // Submitting the proposal
             await contractService.propose(
                 ["0x1069696934567890ABCDef123456789F12345678"],
-                [0],
+                ["0x0000000000000000000000000000000000000000"],
                 [exeCID],
                 ethers.keccak256(Buffer.from(proposalName))
             );
