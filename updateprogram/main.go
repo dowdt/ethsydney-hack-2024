@@ -218,13 +218,15 @@ func main() {
 		}
 
 		{ // Event loop.
-			ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
+			// ethClient, err := ethclient.Dial("https://rpc.ankr.com/eth")
+			ethClient, err := ethclient.Dial("https://testnet.riselabs.xyz")
 			if err != nil {
 				panic(err)
 			}
 
 			eventHash := ethcrypto.Keccak256Hash([]byte("VotedProgramData(bytes[])"))
-			contractAddress := "0xEa6A26A95618062c36F824F1Cc48fCB94e1Adb1a"
+			// otherEventHash := ethcrypto.Keccak256Hash([]byte("VotedProgramData(bytes[])"))
+			contractAddress := "0x71933465B8FC811F93049BBC18a8AdbECc79b5b8"
 
 			query := ethereum.FilterQuery{
 				FromBlock: nil,
