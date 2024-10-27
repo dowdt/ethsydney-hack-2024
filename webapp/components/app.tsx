@@ -19,11 +19,13 @@ export default function App() {
     const [contractService, setContractService] = useState<ContractService | null>(null);
 
     const web3Modal = new Web3Modal({
-        network: "sepolia",
-        cacheProvider: false,
-        providerOptions: {}
+        cacheProvider: true, // Enable this to keep the provider cached
+        providerOptions: {
+            metamask: {
+                package: null,
+            },
+        },
     });
-
     const connectWallet = async () => {
         try {
             setIsLoading(true);
@@ -80,7 +82,12 @@ export default function App() {
             console.log("Submitting proposal:", { proposalName, sourceURL, targetId, exeCID, proposer: account });
 
             // Submitting the proposal
-            await contractService.propose(["0x1069696934567890ABCDef123456789F12345678"], [0], [exeCID], ethers.keccak256(Buffer.from(proposalName)));
+            await contractService.propose(
+                ["0x1069696934567890ABCDef123456789F12345678"],
+                ["0x0000000000000000000000000000000000000000"],
+                [exeCID],
+                ethers.keccak256(Buffer.from(proposalName))
+            );
 
             alert("Proposal submitted successfully!");
             setProposalName("");

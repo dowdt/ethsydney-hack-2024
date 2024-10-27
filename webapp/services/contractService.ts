@@ -5,7 +5,7 @@ interface CreatedProposal {
   proposalId: string;
   proposer: string;
   targets: string[];
-  values: bigint[];
+  values: string[];
   calldatas: string[];
   descriptionHash: string;
   startBlock: number;
@@ -25,7 +25,8 @@ export class ContractService {
   async getCreatedProposals(): Promise<Proposal[]> {
     try {
         const filter = this.governorContract.filters.ProposalCreated();
-        const events = await this.governorContract.queryFilter(filter);
+        
+        const events = await this.governorContract.queryFilter(filter, 3815100 );
 
         console.log("Raw Event Data: ", JSON.stringify(events));
 
@@ -112,7 +113,7 @@ export class ContractService {
   
 
   // Create a new proposal
-  async propose(targets: string[], values: number[], calldatas: string[], descriptionHash: string): Promise<string> {
+  async propose(targets: string[], values: string[], calldatas: string[], descriptionHash: string): Promise<string> {
     try {
       const tx = await this.governorContract.propose(targets, values, calldatas, descriptionHash);
       await tx.wait();
@@ -125,9 +126,32 @@ export class ContractService {
   }
 
   // Cast a vote on an existing proposal
-  async castVote(proposalId: string, support: number): Promise<string> {
+  async castVote(proposalId: string, support: number, calldatas: string[]): Promise<string> {
     try {
-      const tx = await this.governorContract.castVote(proposalId, support);
+    //   "inputs": [
+		// 	{
+		// 		"internalType": "uint256",
+		// 		"name": "proposalId",
+		// 		"type": "uint256"
+		// 	},
+		// 	{
+		// 		"internalType": "uint8",
+		// 		"name": "support",
+		// 		"type": "uint8"
+		// 	},
+		// 	{
+		// 		"internalType": "string",
+		// 		"name": "reason",
+		// 		"type": "string"
+		// 	},
+		// 	{
+		// 		"internalType": "bytes",
+		// 		"name": "params",
+		// 		"type": "bytes"
+		// 	}
+		// ],
+
+      const tx = await this.governorContract.castVoteWithReasonAndParams(proposalId, support, "", calldatas.join(""));
       await tx.wait();
       console.log("Vote cast transaction submitted: ", tx.hash);
       return tx.hash;
@@ -165,11 +189,11 @@ export class ContractService {
   ): Promise<string> {
       try {
           // Since values are always zero and unused, we can default to a single-element array
-          const values = [BigInt(0)];
-
+          const values = ["0x0000000000000000000000000000000000000000"];
           // Log inputs for debugging
           console.log("Executing proposal with parameters:", { 
               targets, 
+              values,
               calldatas, 
               descriptionHash 
           });
